@@ -1,13 +1,18 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>com.lawdocslox.app</groupId>
+    <artifactId>keyservser</artifactId>
+    <version>1.0-SNAPSHOT</version>
+  </parent>
   <groupId>com.lawdocslox.keyserv</groupId>
   <artifactId>keyserv</artifactId>
   <packaging>war</packaging>
   <version>1.0-SNAPSHOT</version>
   <name>keyserv Maven Webapp</name>
   <url>http://maven.apache.org</url>
-   <properties>
+  <properties>
     <spring.version>3.2.2.RELEASE</spring.version>
   </properties>
 
@@ -40,6 +45,13 @@
         <version>${spring.version}</version>
     </dependency>
     <!-- END: Spring web -->
+
+    <dependency>
+        <groupId>com.lawdocslox.app</groupId>
+        <artifactId>keyservapp</artifactId>
+        <version>1.0-SNAPSHOT</version>
+    </dependency>
+
   </dependencies>
 
   <build>
