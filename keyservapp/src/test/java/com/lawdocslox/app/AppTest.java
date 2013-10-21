@@ -3,6 +3,9 @@ package com.lawdocslox.app;
 import junit.framework.Test;
 import junit.framework.TestCase;
 import junit.framework.TestSuite;
+import com.lawdocslox.app.KeyObj;
+import com.lawdocslox.app.KeyObjFactory;
+import java.lang.System;
 
 /**
  * Unit test for simple App.
@@ -33,6 +36,19 @@ public class AppTest
      */
     public void testApp()
     {
+        byte[] clientid = new byte[20];
+        for(byte i : clientid) {
+            i=2;
+        }
+        byte[] firmid = new byte[20];
+        for(byte i : firmid) {
+            i=3;
+        }
+        KeyObj key = KeyObjFactory.getKeyObj(clientid,firmid);
+        for (byte b : key.getKey()) {
+            System.out.printf("0x%02X", b);
+        }
+        System.out.println("Finishing test");
         assertTrue( true );
     }
 }
