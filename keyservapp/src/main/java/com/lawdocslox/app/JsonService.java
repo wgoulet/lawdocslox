@@ -19,7 +19,15 @@ public class JsonService {
     data.put("JANE", new Person("Jane", "Harrison", 35));
     data.put("RAGNAR", new Person("RAGNAR", "GOULET", 2));
   }
-
+  
+  @RequestMapping(value="/key/{clientid}/{firmid}")
+  public @ResponseBody KeyObj getKey(@PathVariable String clientid,@PathVariable String firmid){
+	  byte cliarr[] = new byte[20];
+	  byte firmarr[] = new byte[20];
+	  KeyObj key = KeyObjFactory.getKeyObj(cliarr, firmarr);
+	  return key;
+  }
+  
   @RequestMapping(value="{name}", method = RequestMethod.GET)
   public @ResponseBody Person getPerson(@PathVariable String name){
     Person p = data.get(name.toUpperCase());
