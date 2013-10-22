@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
 
 import java.util.HashMap;
 import java.util.Map;
+import org.apache.commons.codec.binary.Base64;
 
 @Controller
 public class JsonService {
@@ -24,6 +25,8 @@ public class JsonService {
   public @ResponseBody KeyObj getKey(@PathVariable String clientid,@PathVariable String firmid){
 	  byte cliarr[] = new byte[20];
 	  byte firmarr[] = new byte[20];
+          cliarr = Base64.decodeBase64(clientid);
+          firmarr = base64.decodeBase64(firmid);
 	  KeyObj key = KeyObjFactory.getKeyObj(cliarr, firmarr);
 	  return key;
   }
