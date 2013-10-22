@@ -23,10 +23,13 @@ public class JsonService {
   
   @RequestMapping(value="/key/{clientid}/{firmid}")
   public @ResponseBody KeyObj getKey(@PathVariable String clientid,@PathVariable String firmid){
-	  byte cliarr[] = new byte[20];
+	  //TODO: Horribly insecure and hacky. Need to check proper limit
+          //of input params and set size of cliarr/firmarr based on that size
+      
+          byte cliarr[] = new byte[20];
 	  byte firmarr[] = new byte[20];
           cliarr = Base64.decodeBase64(clientid);
-          firmarr = base64.decodeBase64(firmid);
+          firmarr = Base64.decodeBase64(firmid);
 	  KeyObj key = KeyObjFactory.getKeyObj(cliarr, firmarr);
 	  return key;
   }

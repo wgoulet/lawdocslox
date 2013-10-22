@@ -6,6 +6,7 @@ import junit.framework.TestSuite;
 import com.lawdocslox.app.KeyObj;
 import com.lawdocslox.app.KeyObjFactory;
 import java.lang.System;
+import org.apache.commons.codec.binary.Base64;
 
 /**
  * Unit test for simple App.
@@ -36,14 +37,12 @@ public class AppTest
      */
     public void testApp()
     {
-        byte[] clientid = new byte[20];
-	for(int i=0;i<clientid.length;i++) {
-		clientid[i] = (byte)i;
-	}
-        byte[] firmid = new byte[20];
-	for(int i=0;i<firmid.length;i++) {
-		firmid[i] = (byte)i;
-        }
+        // MjE0NTc2NDM=/MTIzNDU2Nw== 
+        
+        byte[] clientid = Base64.decodeBase64("MjE0NTc2NDM=");
+	
+        byte[] firmid = Base64.decodeBase64("MTIzNDU2Nw==");
+
         KeyObj key;
 	key = KeyObjFactory.getKeyObj(clientid,firmid);
         for (byte b : key.getKey()) {
