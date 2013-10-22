@@ -48,7 +48,7 @@ public class AppTest
         for (byte b : key.getKey()) {
             System.out.printf("0x%02X", b);
         }
-        System.out.println("Finishing test");
+        System.out.println("Finishing test up!");
         assertTrue( true );
     }
 }
