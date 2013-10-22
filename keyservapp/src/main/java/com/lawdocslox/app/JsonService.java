@@ -25,7 +25,7 @@ public class JsonService {
   public @ResponseBody KeyObj getKey(@PathVariable String clientid,@PathVariable String firmid){
 	  //TODO: Horribly insecure and hacky. Need to check proper limit
           //of input params and set size of cliarr/firmarr based on that size
-      
+          // Also fix keygen methods.
           byte cliarr[] = new byte[20];
 	  byte firmarr[] = new byte[20];
           cliarr = Base64.decodeBase64(clientid);
