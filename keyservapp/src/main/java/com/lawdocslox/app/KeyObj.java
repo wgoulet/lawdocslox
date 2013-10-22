@@ -8,7 +8,7 @@ public class KeyObj {
 
   public KeyObj(byte[] inkeyval,int id) {
     this.keyval = new byte[inkeyval.length];
-    System.arraycopy(this.keyval,0,inkeyval,0,inkeyval.length);
+    System.arraycopy(inkeyval,0,this.keyval,0,inkeyval.length);
   }
 
   public byte[] getKey() {

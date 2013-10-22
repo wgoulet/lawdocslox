@@ -37,14 +37,15 @@ public class AppTest
     public void testApp()
     {
         byte[] clientid = new byte[20];
-        for(byte i : clientid) {
-            i=2;
-        }
+	for(int i=0;i<clientid.length;i++) {
+		clientid[i] = (byte)i;
+	}
         byte[] firmid = new byte[20];
-        for(byte i : firmid) {
-            i=3;
+	for(int i=0;i<firmid.length;i++) {
+		firmid[i] = (byte)i;
         }
-        KeyObj key = KeyObjFactory.getKeyObj(clientid,firmid);
+        KeyObj key;
+	key = KeyObjFactory.getKeyObj(clientid,firmid);
         for (byte b : key.getKey()) {
             System.out.printf("0x%02X", b);
         }
