@@ -8,8 +8,12 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.context.annotation.CommonAnnotationBeanPostProcessor;
 import org.apache.log4j.ConsoleAppender;
-import org.apache.log4j.Logger.*;
+import org.apache.log4j.Logger;
 import org.apache.log4j.*;
+import java.util.Properties;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.File;
 
 import javax.annotation.PostConstruct;
 
@@ -19,6 +23,8 @@ import org.apache.commons.codec.binary.Base64;
 
 @Controller
 public class JsonService {
+  private static Logger log = Logger.getLogger(JsonService.class); 
+
 
   private static Map<String, Person> data = new HashMap<String, Person>();
   static{
@@ -36,10 +42,19 @@ public class JsonService {
   @PostConstruct
   public void init()
   {
-	 // ConsoleAppender logger = new ConsoleAppender();
-	 // LoggingEvent evt = new LoggingEvent();
-	  org.apache.log4j.Logger.getRootLogger().debug("Initializing!!");
-	  //LoggingEvent evt = new LoggingEvent();
+	  // Look for secret and seed values to initialize KeyObjFactory
+	  // with. If they don't exist, create new ones and store in 
+	  // properties file
+	  Properties props = new Properties();
+	 // String path = getServletContext();
+
+	  //File propsFile = new File();
+	  
+	  //FileInputStream in = new FileInputStream();
+	  
+	  
+
+	  log.info("initializing");
   }
   
   @RequestMapping(value="/key/{clientid}/{firmid}")
@@ -60,6 +75,7 @@ public class JsonService {
   @RequestMapping(value="{name}", method = RequestMethod.GET)
   public @ResponseBody Person getPerson(@PathVariable String name){
     Person p = data.get(name.toUpperCase());
+	  log.info("getting data");
     return p;
   }
 }
