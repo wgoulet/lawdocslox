@@ -40,6 +40,10 @@ http://localhost:8080/keyserv/ragnar
 
 If you see json output on your screen, everything is setup correctly.
 
+Collaboration instructions
+--------------------------
+See google drive doc for screen caps and instructions
+
 Keyserver Architecture
 ----------------------
 
