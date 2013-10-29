@@ -26,6 +26,7 @@ public class JsonService {
     data.put("JANE", new Person("Jane", "Harrison", 35));
     data.put("RAGNAR", new Person("RAGNAR", "GOULET", 2));
     data.put("ANGUS", new Person("Angus", "FUNG", 37));
+    data.put("DOMINIQUE", new Person("DOMINQUE", "GOULET", 1));
   }
   
   @PostConstruct
