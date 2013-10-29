@@ -29,6 +29,7 @@ public class JsonService {
     data.put("DOMINIQUE", new Person("DOMINQUE", "GOULET", 1));
     data.put("HELLO", new Person("Hello", "ICAN", 1));
     data.put("docs", new Person("docs", "cool", 2));
+    data.put("github", new Person("rocks", "man!", 3));
             
   }
   
