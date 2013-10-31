@@ -15,8 +15,6 @@
     <context-param>
         <param-name>log4jConfigLocation</param-name>
         <param-value>/WEB-INF/resources/log4j.properties</param-value>
-	<param-name>keyservProperties</param-name>
-	<param-value>/WEB-INF/resources/keyserv.properties</param-value>
     </context-param>
 
      <listener>
