@@ -6,6 +6,9 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpStatus;
 import org.springframework.context.annotation.CommonAnnotationBeanPostProcessor;
 import org.springframework.context.annotation.PropertySource;
 import org.springframework.context.support.PropertySourcesPlaceholderConfigurer;
@@ -59,7 +62,7 @@ public class JsonService {
   @PostConstruct
   public void init()
   {
-	// Look for secret and seed values to initialize KeyObjFactory
+	// Look for secret and iv values to initialize KeyObjFactory
 	// with. If they don't exist, create new ones and store in 
 	// properties file
 	Properties props = new Properties();
@@ -80,14 +83,11 @@ public class JsonService {
 	  	FileInputStream fstream = new FileInputStream(keyfile);
 		
 		props.load(fstream);
-		if((props.containsKey("seed") 
-		&&(props.containsKey("secret")  
-		&&(props.containsKey("iv")))))
+		if((props.containsKey("secret") 
+		&&(props.containsKey("iv"))))
 		{
-			seed = props.getProperty("seed");
 			secret = props.getProperty("secret");
 			iv = props.getProperty("iv");
-			KeyObjFactory.setRandomSeed(Base64.decodeBase64(seed));
 			KeyObjFactory.setSecret(Base64.decodeBase64(secret));
 			KeyObjFactory.setIV(Base64.decodeBase64(iv));
 		}
@@ -96,15 +96,13 @@ public class JsonService {
 			byte[] seedbytes = new byte[seedsize];
 			byte[] ivbytes = new byte[seedsize];
 			seedbytes = KeyObjFactory.genRandVal(seedsize);
-			props.setProperty("seed",Base64.encodeBase64(seedbytes).toString());
 			props.setProperty("secret", initsecret);
-			seed = props.getProperty("seed");
 			secret = props.getProperty("secret");
-			KeyObjFactory.setRandomSeed(Base64.decodeBase64(seed));
+			KeyObjFactory.setRandomSeed(seedbytes);
 			KeyObjFactory.setSecret(Base64.decodeBase64(secret));
 			KeyObjFactory.genIV();
 			int ivsize = KeyObjFactory.getIV(ivbytes, seedsize);
-			props.setProperty("iv", Base64.encodeBase64(ivbytes).toString());
+			props.setProperty("iv", Base64.encodeBase64String(ivbytes));
 	  		try
 			{
 				FileOutputStream fostream = new FileOutputStream(keyfile);
@@ -134,6 +132,79 @@ public class JsonService {
           firmarr = Base64.decodeBase64(firmid);
 	  KeyObj key = KeyObjFactory.getKeyObj(cliarr, firmarr);
 	  return key;
+  }
+
+  @RequestMapping(value="/key/destroyall")
+  public ResponseEntity<String> destroyAll()
+  {
+	File keys = new File(keyfile);
+	try
+	{
+		keys.delete();
+		FileInputStream fstream = new FileInputStream(keyfile);
+		Properties props = new Properties();	
+		props.load(fstream);
+		byte[] seedbytes = new byte[seedsize];
+		byte[] ivbytes = new byte[seedsize];
+		seedbytes = KeyObjFactory.genRandVal(seedsize);
+		props.setProperty("secret", initsecret);
+		secret = props.getProperty("secret");
+		KeyObjFactory.setRandomSeed(seedbytes);
+		KeyObjFactory.setSecret(Base64.decodeBase64(secret));
+		KeyObjFactory.genIV();
+		int ivsize = KeyObjFactory.getIV(ivbytes, seedsize);
+		props.setProperty("iv", Base64.encodeBase64String(ivbytes));
+		try
+		{
+			FileOutputStream fostream = new FileOutputStream(keyfile);
+			props.store(fostream, "");
+		}catch (Exception e)
+	  	{
+			e.printStackTrace();
+			System.exit(1);
+		}
+		log.info("Reinitialized keyfile");
+		return new ResponseEntity<String>(HttpStatus.OK);
+	}
+	catch(Exception e)
+	{
+		e.printStackTrace();
+		return new ResponseEntity<String>(HttpStatus.NOT_MODIFIED);
+	}		  
+  }
+
+  @RequestMapping(value="/system/setsecret/{secret}")
+  public ResponseEntity<String> setSecret(@PathVariable String secret)
+  {
+	Properties props = new Properties();
+	File keys = new File(keyfile);
+	// Check to see if incoming string is valid base64
+	if(!Base64.isBase64(secret))
+	{
+		log.error("Invalid secret format");
+		return new ResponseEntity<String>(HttpStatus.BAD_REQUEST);
+	}
+	if(!keys.exists())
+	{
+		log.error("Key file missing!");
+		return new ResponseEntity<String>(HttpStatus.NOT_MODIFIED);
+	}
+	try
+	{
+	  	FileInputStream fstream = new FileInputStream(keyfile);
+		props.load(fstream);
+		props.setProperty("secret", secret);
+		fstream.close();
+		FileOutputStream fostream = new FileOutputStream(keyfile);
+		props.store(fostream,"");
+		fostream.close();
+		return new ResponseEntity<String>(HttpStatus.OK);
+
+	} catch (Exception e)
+	{
+		log.error("Unable to open or update key file!");
+		return new ResponseEntity<String>(HttpStatus.NOT_MODIFIED);
+	}
   }
   
   @RequestMapping(value="{name}", method = RequestMethod.GET)
