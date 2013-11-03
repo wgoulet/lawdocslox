@@ -1,0 +1,20 @@
+<!doctype html>
+<head>
+<title>File Save Results</title>
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" />
+<link rel="stylesheet" type="text/css" href="styles.css"  />  
+</head>
+
+<H1>File Save Results</H1>
+<br>
+<b>File Name {{ filename }} was saved using firm id {{ bfirmid}} and 
+client id {{ bclientid }}</b>
+<br>
+<form name="encrypt" action="/encrypt" method="post">
+Click 'Encrypt' to encrypt the file
+<input type="submit" name="encrypt" value="Encrypt">
+<input type="hidden" name="filename" value="{{ filename }}">
+<input type="hidden" name="bfirmid" value="{{ bfirmid }}">
+<input type="hidden" name="bclientid" value="{{ bclientid }}">
+</form>
+</html>

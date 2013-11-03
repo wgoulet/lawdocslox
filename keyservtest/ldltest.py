@@ -11,7 +11,7 @@ import collections
 import json
 from Crypto.Cipher import AES
 from Crypto import Random
-from flask import Flask,render_template,request,redirect,url_for
+from flask import Flask,render_template,request,redirect,url_for,send_from_directory
 from werkzeug import secure_filename
 
 app = Flask(__name__)
@@ -53,15 +53,14 @@ def encryptfile():
         # but convert base64 back to binary first
         bkey = binascii.a2b_base64(encrkey)
         key = bkey[0:32]
-        #key = b'Sixteen byte key'
 
         try:
             print "Starting encryption"
             # Setup our AES cipher
             iv = Random.new().read(AES.block_size)
-            cipher = AES.new(key,AES.MODE_CTR,iv)        
+            cipher = AES.new(key,AES.MODE_CFB,iv)        
             #cipher = XORCipher.new(key)        
-            print "Cipher created"
+            print "Cipher created using iv %s" % binascii.hexlify(iv)
         except:
             raise
 
@@ -71,22 +70,79 @@ def encryptfile():
         epath = os.path.join(app.config['UPLOAD_FOLDER'],encrfilename)
         print "File ready: %s" % epath
         f = open(epath,"wb")
+        f.write(iv)
         for chunk in chunkfile(path):
-            print chunk
-            t = cipher.encrypt(chunk)
+            #print chunk
+            #t = cipher.encrypt(chunk)
             #print binascii.a2b_base64(cipher.encrypt(chunk))
-            #f.write(cipher.encrypt(chunk))
+            f.write(cipher.encrypt(chunk))
             #f.write(chunk)
 
         f.flush()
         f.close()
-        return render_template('showencrypt.html',filename=encrfilename,key=encrkey)
+        return render_template('showencrypt.html',filename=encrfilename,key=encrkey, \
+             bclientid=bclientid,bfirmid=bfirmid)
         
+@app.route("/decrypt",methods=['POST'])
+def decryptfile():        
+    print "Decrypting file"
+    if request.method == 'POST':
+        infile = request.form.get('filename')
+        bfirmid = request.form.get('bfirmid')
+        bclientid = request.form.get('bclientid')
+        path = os.path.join(app.config['UPLOAD_FOLDER'],infile)
+        print "Got params %s %s %s" % (infile,bfirmid,bclientid)
+        # Get an encryption key from the key server
+        r = requests.get("http://ubuntu:8084/keyserv/key/%s/%s" % (bfirmid,bclientid))
+        keyobj = r.json()
+        encrkey = keyobj['key']
+        print "Got decryption key %s" % encrkey
+        # Carve out a 32byte/256 bit key from the keyserver
+        # but convert base64 back to binary first
+        bkey = binascii.a2b_base64(encrkey)
+        key = bkey[0:32]
+
+        # Get IV from file
+        f = open(path,"rb")
+        iv = f.read(AES.block_size)
+        f.close()
+
+        try:
+            print "Creating cipher"
+            # Setup our AES cipher
+            cipher = AES.new(key,AES.MODE_CFB,iv)        
+            print "Cipher created using iv %s" % binascii.hexlify(iv)
+        except:
+            raise
+
+        # Open encrypted file in staging area, decrypt it and save it to disk with
+        # different filename
+        decrfilename = "%s_clear" % infile
+        epath = os.path.join(app.config['UPLOAD_FOLDER'],decrfilename)
+        print "File ready: %s" % epath
+        f = open(epath,"wb")
+        for chunk in chunkfile(path,skipchunk=1):
+            f.write(cipher.decrypt(chunk))
         
+        f.flush()
+        f.close()
+
+        return render_template("showfile.html",filename=decrfilename)
+        #return "File %s in folder %s" % (decrfilename,app.config['UPLOAD_FOLDER'])
+
+
+@app.route('/download',methods=['POST'])
+def uploaded_file():
+    if request.method == 'POST':
+        filename = request.form.get('filename')
+        return send_from_directory(app.config['UPLOAD_FOLDER'],
+                               filename)
          
-def chunkfile(filename,blocksize=16):
+def chunkfile(filename,blocksize=16,skipchunk=0):
     print "Chunking file %s" % filename
     with open(filename,"rb") as f:
+        if(skipchunk):
+            f.seek(blocksize)
         while True:
             chunk = f.read(blocksize)
             if chunk:

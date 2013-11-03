@@ -59,6 +59,11 @@ for chunk in chunkfile(infile):
 f.flush()
 f.close()
 
+# Since we add the IV as the first block of the encrypted file,
+# open the file and read this value first. When we are starting
+# our decrypt operation, tell chunkfile to skip past the first
+# chunk which contains the IV
+
 f = open(outfile,"rb")
 iv = f.read(AES.block_size)
 f.close()
