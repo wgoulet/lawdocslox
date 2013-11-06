@@ -10,10 +10,11 @@ import subprocess
 import collections
 import json
 import ConfigParser
+from tempfile import TemporaryFile
 from dropbox.client import DropboxClient,DropboxOAuth2Flow
 from Crypto.Cipher import AES
 from Crypto import Random
-from flask import Flask,render_template,request,redirect,url_for,send_from_directory,session
+from flask import Flask,render_template,request,redirect,url_for,send_from_directory,session,g
 from werkzeug import secure_filename
 
 app = Flask(__name__)
@@ -53,12 +54,13 @@ def linkDropbox():
   #  else:
   #      access_token = 
     #if access_token is not None:
-        client = DropboxClient(access_token)
-        account_info = client.account_info()
-        real_name = account_info["display_name"] 
-        return render_template('index.html')
+        #client = DropboxClient(access_token)
+        #account_info = client.account_info()
+        #real_name = account_info["display_name"] 
+        #g.set('dclient',client)
+        return render_template('index.html',needlink='false')
     except:
-        return render_template('index.html')
+        return render_template('index.html',needlink='true')
 
 @app.route('/dropboxlogin',methods=['GET', 'POST'])
 def dropboxLogin():
@@ -250,11 +252,33 @@ def chunkfile(filename,blocksize=16,skipchunk=0):
 def showFiles():
     print request.method
     if request.method == 'POST':
+        
         infile = request.files['infile']
-        print "Saving file %s" % infile.filename
+        fd = infile.stream
+        #with fd:
+        #    print fd.read()
+        try:
+            fd.seek(0,os.SEEK_END)
+            fdsize = fd.tell()
+            print "file size is %d" % fdsize
+            fd.seek(0)
+            # get a chunked DropBox uploader
+            # Get the Dropbox client we stored earlier
+            access_token = config.get('Credentials','access_token')
+            dclient = DropboxClient(access_token)
+            uploader = dclient.get_chunked_uploader(fd,fdsize)
+            print "Saving file %s to dropbox" % infile.filename
+            while uploader.offset < fdsize:
+                try:
+                    upload = uploader.upload_chunked()
+                except Exception as e:
+                    print e
+            uploader.finish(secure_filename("/%s" % infile))
+        except Exception as e:
+            print e
         fname = secure_filename(infile.filename)
         path = os.path.join(app.config['UPLOAD_FOLDER'],fname)
-        infile.save(path)
+        #infile.save(path)
         firmid = request.form.get('firmid')
         clientid = request.form.get('clientid')
         print "Got firm %s and client %s" % (firmid,clientid)
