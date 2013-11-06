@@ -9,18 +9,24 @@ import requests
 import subprocess
 import collections
 import json
+import ConfigParser
+from dropbox.client import DropboxClient,DropboxOAuth2Flow
 from Crypto.Cipher import AES
 from Crypto import Random
-from flask import Flask,render_template,request,redirect,url_for,send_from_directory
+from flask import Flask,render_template,request,redirect,url_for,send_from_directory,session
 from werkzeug import secure_filename
 
 app = Flask(__name__)
-app.config.from_object(__name__)
-UPLOAD_FOLDER = '/var/www/files'
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+config = ConfigParser.ConfigParser()
+config.read('./ldl.cfg')
+app.config['CFG_FILE'] = './ldl.cfg'
+app.config['UPLOAD_FOLDER'] = config.get('Environment','upload_folder')
+app.config['APP_KEY'] = config.get('Credentials','dropbox_app_key')
+app.config['APP_SECRET'] = config.get('Credentials','dropbox_app_secret')
+app.config['SECRET_KEY'] ='testing'
 
 
-@app.route('/')
+@app.route('/test')
 def showHello():
     # connect to test URL on tested app and show result
     print "about to connect"
@@ -33,6 +39,93 @@ def showHello():
         return render_template('showTest.html',lastName=obj['lastName'],
             firstName=obj['firstName'])
 
+@app.route('/')
+def linkDropbox():
+    print  "Got to /"
+    if 'user' not in session:
+        print 'redirecting'
+        return redirect('/dropboxlogin')
+  #  if(config.get('Credentials','access_token') is not None):
+    print "getting access token"
+    try:
+        access_token = config.get('Credentials','access_token')
+        print "got access token"
+  #  else:
+  #      access_token = 
+    #if access_token is not None:
+        client = DropboxClient(access_token)
+        account_info = client.account_info()
+        real_name = account_info["display_name"] 
+        return render_template('index.html')
+    except:
+        return render_template('index.html')
+
+@app.route('/dropboxlogin',methods=['GET', 'POST'])
+def dropboxLogin():
+    error = None
+    print request.method
+    if request.method == 'POST':
+        username = request.form['username']
+        if username:
+            print "About to set username %s" % username
+            session['user'] = username
+            print "Set username %s" % username
+            config.set('Credentials','user',username)
+            print "Saved username %s to config" % username
+            with open(app.config['CFG_FILE'],"wb") as cfg:
+                config.write(cfg)
+            #flash('You were logged in')
+            return redirect('/')
+        else:
+            print ('You must provide a username!')
+    print 'rendering template'
+    return render_template('login.html')
+
+@app.route('/dropbox-auth-start')
+def dropboxAuthStart():
+    print session
+    if 'user' not in session:
+        abort(403)
+    print "redirecting user to get auth flow"
+    return redirect(getAuthFlow().start())
+
+def getAuthFlow():
+    print "starting auth flow"
+    redirect_uri = 'http://localhost:8008/dropbox-auth-finish'#url_for('dropbox_auth_finish',_external=True)
+    print redirect_uri
+    try:
+        flow = DropboxOAuth2Flow(app.config['APP_KEY'],app.config['APP_SECRET'],
+            redirect_uri,session,'dropbox-auth-csrf-token')
+        print flow
+        return flow
+    except Exception as e:
+        print e
+        raise
+
+@app.route('/dropbox-auth-finish')
+def dropboxAuthFinish():
+    username = session.get('user')
+    if username is None:
+        abort(403)
+    try:
+        access_token, user_id, url_state = getAuthFlow().finish(request.args)
+    except DropboxOAuth2Flow.BadRequestException, e:
+        abort(400)
+    except DropboxOAuth2Flow.BadStateException, e:
+        abort(400)
+    except DropboxOAuth2Flow.CsrfException, e:
+        abort(403)
+    except DropboxOAuth2Flow.NotApprovedException, e:
+        print('Not approved?  Why not, bro?')
+        return redirect('/')
+    except DropboxOAuth2Flow.ProviderException, e:
+        app.logger.exception("Auth error" + e)
+        abort(403)
+    config.set('Credentials','access_token',access_token)
+    with open(app.config['CFG_FILE'],"wb") as cfg:
+        config.write(cfg)
+    return redirect('/uploadfiles')
+    
 @app.route('/uploadfiles')
 def uploadFiles():
     return render_template('fileupload.html')
@@ -43,7 +136,7 @@ def encryptfile():
         infile = request.form.get('filename')
         bfirmid = request.form.get('bfirmid')
         bclientid = request.form.get('bclientid')
-        path = os.path.join(app.config['UPLOAD_FOLDER'],infile)
+        path = os.path.join(app.config['upload_folder'],infile)
         # Get an encryption key from the key server
         r = requests.get("http://ubuntu:8084/keyserv/key/%s/%s" % (bfirmid,bclientid))
         keyobj = r.json()
@@ -173,4 +266,4 @@ def showFiles():
 
 
 if __name__ == '__main__':
-    app.run(host="0.0.0.0",port=8008)
+    app.run(host="localhost",port=8008)
