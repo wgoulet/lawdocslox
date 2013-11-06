@@ -135,49 +135,71 @@ def uploadFiles():
 @app.route('/encrypt',methods=['POST'])
 def encryptfile():
     if request.method == 'POST':
-        infile = request.form.get('filename')
+        infile = request.files['infile']
         bfirmid = request.form.get('bfirmid')
         bclientid = request.form.get('bclientid')
-        path = os.path.join(app.config['upload_folder'],infile)
-        # Get an encryption key from the key server
-        r = requests.get("http://ubuntu:8084/keyserv/key/%s/%s" % (bfirmid,bclientid))
-        keyobj = r.json()
-        encrkey = keyobj['key']
-        print "Got key %s" % encrkey
-        # Carve out a 32byte/256 bit key from the keyserver
-        # but convert base64 back to binary first
-        bkey = binascii.a2b_base64(encrkey)
-        key = bkey[0:32]
+        result = savefile(infile,infile.filename,bfirmid,bclientid)
+        return render_template('showencrypt.html',filename=result['path'],key="not available", \
+             bclientid=bclientid,bfirmid=bfirmid)
 
-        try:
-            print "Starting encryption"
-            # Setup our AES cipher
-            iv = Random.new().read(AES.block_size)
-            cipher = AES.new(key,AES.MODE_CFB,iv)        
-            #cipher = XORCipher.new(key)        
-            print "Cipher created using iv %s" % binascii.hexlify(iv)
-        except:
-            raise
+        
+def savefile(fd,fname,bfirmid,bclientid):
+    # Encrypt each chunk from fd as it is read into a 
+    # tmpfile which will be uploaded to Dropbox using
+    # the given filename. 
+    r = requests.get("http://ubuntu:8084/keyserv/key/%s/%s" % (bfirmid,bclientid))
+    keyobj = r.json()
+    encrkey = keyobj['key']
+    print "Got key %s" % encrkey
+    # Carve out a 32byte/256 bit key from the keyserver
+    # but convert base64 back to binary first
+    bkey = binascii.a2b_base64(encrkey)
+    key = bkey[0:32]
 
-        # Open file in staging area, encrypt it and save it to disk with
-        # different filename
-        encrfilename = "%s_encr" % infile
-        epath = os.path.join(app.config['UPLOAD_FOLDER'],encrfilename)
-        print "File ready: %s" % epath
-        f = open(epath,"wb")
-        f.write(iv)
-        for chunk in chunkfile(path):
-            #print chunk
-            #t = cipher.encrypt(chunk)
-            #print binascii.a2b_base64(cipher.encrypt(chunk))
+    try:
+        print "Starting encryption"
+        # Setup our AES cipher
+        iv = Random.new().read(AES.block_size)
+        cipher = AES.new(key,AES.MODE_CFB,iv)        
+        #cipher = XORCipher.new(key)        
+        print "Cipher created using iv %s" % binascii.hexlify(iv)
+    except:
+        raise
+
+    try:
+        f = TemporaryFile()
+        f.write(iv)         
+   
+        for chunk in chunkfd(fd,blocksize=4194304):
             f.write(cipher.encrypt(chunk))
-            #f.write(chunk)
 
         f.flush()
-        f.close()
-        return render_template('showencrypt.html',filename=encrfilename,key=encrkey, \
-             bclientid=bclientid,bfirmid=bfirmid)
-        
+        f.seek(0,os.SEEK_END)
+        fsize = f.tell()
+        f.seek(0)
+
+    except Exception as e:
+        print e
+
+    print "Getting ready for Dropbox upload"
+    # Get a Dropbox uploader
+    try:
+        access_token = config.get('Credentials','access_token')
+        dclient = DropboxClient(access_token)
+        uploader = dclient.get_chunked_uploader(f,fsize)
+
+        while uploader.offset < fsize:
+            try:
+                upload = uploader.upload_chunked()
+            except Exception as e:
+                print e
+    except Exception as e:
+        print e
+    
+    f.close()
+    
+    return uploader.finish(secure_filename("/%s_encr" % fname))    
+
 @app.route("/decrypt",methods=['POST'])
 def decryptfile():        
     print "Decrypting file"
@@ -216,7 +238,7 @@ def decryptfile():
         epath = os.path.join(app.config['UPLOAD_FOLDER'],decrfilename)
         print "File ready: %s" % epath
         f = open(epath,"wb")
-        for chunk in chunkfile(path,skipchunk=1):
+        for chunk in chunkfile(path,ivsize=AES.block_size,blocksize=4194304,skipiv=1):
             f.write(cipher.decrypt(chunk))
         
         f.flush()
@@ -233,11 +255,21 @@ def uploaded_file():
         return send_from_directory(app.config['UPLOAD_FOLDER'],
                                filename)
          
-def chunkfile(filename,blocksize=16,skipchunk=0):
+def chunkfd(fd,ivsize=16,blocksize=16,skipiv=0):
+    if(skipiv):
+        fd.seek(ivsize)
+    while True:
+        chunk = fd.read(blocksize)
+        if chunk:
+          yield chunk
+        else:
+          break
+
+def chunkfile(filename,ivsize=16,blocksize=16,skipiv=0):
     print "Chunking file %s" % filename
     with open(filename,"rb") as f:
-        if(skipchunk):
-            f.seek(blocksize)
+        if(skipiv):
+            f.seek(ivsize)
         while True:
             chunk = f.read(blocksize)
             if chunk:
@@ -273,21 +305,27 @@ def showFiles():
                     upload = uploader.upload_chunked()
                 except Exception as e:
                     print e
-            uploader.finish(secure_filename("/%s" % infile))
+            dboxname = uploader.finish(secure_filename("/%s" % infile.filename))['path']
+            fd.seek(0)
         except Exception as e:
             print e
         fname = secure_filename(infile.filename)
         path = os.path.join(app.config['UPLOAD_FOLDER'],fname)
-        #infile.save(path)
+        infile.save(path)
         firmid = request.form.get('firmid')
         clientid = request.form.get('clientid')
         print "Got firm %s and client %s" % (firmid,clientid)
         bfirmid = base64.b64encode(firmid)
         bclientid = base64.b64encode(clientid)
         print "Got bfirm %s and bclient %s" % (bfirmid,bclientid)
-        return render_template('saveresult.html',filename=fname,bfirmid=bfirmid, \
+        return render_template('saveresult.html',filename=fname,dboxname=dboxname,bfirmid=bfirmid, \
             bclientid=bclientid)
 
+def dropboxDL():
+    return 1
+
+def dropboxUL():
+    return 1
 
 if __name__ == '__main__':
     app.run(host="localhost",port=8008)
