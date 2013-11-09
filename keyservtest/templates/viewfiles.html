@@ -1,0 +1,22 @@
+<!doctype html>
+<head>
+<title>File List</title>
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" />
+<link rel="stylesheet" type="text/css" href="styles.css"  />  
+</head>
+
+<H1>File List</H1>
+<br>
+{% for f in filelist %}
+    <div> {{ f }}</div>
+{% endfor %}
+<form name="dl" action="/decrypt" method="post">
+Type the name of the file to download below as well as
+client and firm ID and
+click 'Download' to download decrypted file
+<input type=submit name=download value="Download"/>
+<input type=text name=filename />
+<input type=text name=firmid />
+<input type=text name=clientid /> 
+</form>
+</html>

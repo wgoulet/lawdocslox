@@ -14,7 +14,7 @@ from tempfile import TemporaryFile
 from dropbox.client import DropboxClient,DropboxOAuth2Flow
 from Crypto.Cipher import AES
 from Crypto import Random
-from flask import Flask,render_template,request,redirect,url_for,send_from_directory,session,g
+from flask import Flask,render_template,request,redirect,url_for,send_from_directory,session,g,Response
 from werkzeug import secure_filename
 
 app = Flask(__name__)
@@ -46,18 +46,10 @@ def linkDropbox():
     if 'user' not in session:
         print 'redirecting'
         return redirect('/dropboxlogin')
-  #  if(config.get('Credentials','access_token') is not None):
     print "getting access token"
     try:
         access_token = config.get('Credentials','access_token')
         print "got access token"
-  #  else:
-  #      access_token = 
-    #if access_token is not None:
-        #client = DropboxClient(access_token)
-        #account_info = client.account_info()
-        #real_name = account_info["display_name"] 
-        #g.set('dclient',client)
         return render_template('index.html',needlink='false')
     except:
         return render_template('index.html',needlink='true')
@@ -68,6 +60,7 @@ def dropboxLogin():
     print request.method
     if request.method == 'POST':
         username = request.form['username']
+        print request.form
         if username:
             print "About to set username %s" % username
             session['user'] = username
@@ -76,7 +69,6 @@ def dropboxLogin():
             print "Saved username %s to config" % username
             with open(app.config['CFG_FILE'],"wb") as cfg:
                 config.write(cfg)
-            #flash('You were logged in')
             return redirect('/')
         else:
             print ('You must provide a username!')
@@ -136,8 +128,8 @@ def uploadFiles():
 def encryptfile():
     if request.method == 'POST':
         infile = request.files['infile']
-        bfirmid = request.form.get('bfirmid')
-        bclientid = request.form.get('bclientid')
+        bfirmid = base64.b64encode(request.form.get('firmid'))
+        bclientid = base64.b64encode(request.form.get('clientid'))
         result = savefile(infile,infile.filename,bfirmid,bclientid)
         return render_template('showencrypt.html',filename=result['path'],key="not available", \
              bclientid=bclientid,bfirmid=bfirmid)
@@ -148,6 +140,7 @@ def savefile(fd,fname,bfirmid,bclientid):
     # tmpfile which will be uploaded to Dropbox using
     # the given filename. 
     r = requests.get("http://ubuntu:8084/keyserv/key/%s/%s" % (bfirmid,bclientid))
+    print "http://ubuntu:8084/keyserv/key/%s/%s" % (bfirmid,bclientid)
     keyobj = r.json()
     encrkey = keyobj['key']
     print "Got key %s" % encrkey
@@ -203,63 +196,77 @@ def savefile(fd,fname,bfirmid,bclientid):
 @app.route("/decrypt",methods=['POST'])
 def decryptfile():        
     print "Decrypting file"
+    # To avoid writing plaintext to any files, copy the response
+    # data from Dropbox directly into a read/write in memory buffer
     if request.method == 'POST':
-        infile = request.form.get('filename')
-        bfirmid = request.form.get('bfirmid')
-        bclientid = request.form.get('bclientid')
-        path = os.path.join(app.config['UPLOAD_FOLDER'],infile)
-        print "Got params %s %s %s" % (infile,bfirmid,bclientid)
-        # Get an encryption key from the key server
+        infile = request.form['filename']
+        bfirmid = base64.b64encode(request.form.get('firmid'))
+        bclientid = base64.b64encode(request.form.get('clientid'))
+        try:
+            access_token = config.get('Credentials','access_token')
+            dclient = DropboxClient(access_token)
+            print "Requesting /%s" % infile
+            httpresp = dclient.get_file("/%s" % infile)
+            instream = io.BytesIO()
+            inbuf = io.BufferedRandom(instream)
+            inbuf.write(httpresp.read())
+            inbuf.flush()
+            inbuf.seek(0)
+            result = getfile(inbuf,bfirmid,bclientid)
+            print "done with getfile"
+            
+            result.seek(0,os.SEEK_END)
+            print "Got %d bytes" % result.tell()
+            result.seek(0)
+            # Copy the decrypted data into a HTTP response object
+            # to be returned to the user
+            print "getting ready to return to response object"
+
+            return Response(chunkfd(result,blocksize=4096),
+                mimetype='application/octet-stream')
+            
+        except Exception as e:
+            print e
+
+def getfile(fd,bfirmid,bclientid):
+    if request.method == 'POST':
+        outstream = io.BytesIO()
+        outbuf = io.BufferedRandom(outstream) 
         r = requests.get("http://ubuntu:8084/keyserv/key/%s/%s" % (bfirmid,bclientid))
+        print "http://ubuntu:8084/keyserv/key/%s/%s" % (bfirmid,bclientid)
         keyobj = r.json()
         encrkey = keyobj['key']
-        print "Got decryption key %s" % encrkey
+        print "Got key %s" % encrkey
         # Carve out a 32byte/256 bit key from the keyserver
         # but convert base64 back to binary first
         bkey = binascii.a2b_base64(encrkey)
         key = bkey[0:32]
 
         # Get IV from file
-        f = open(path,"rb")
-        iv = f.read(AES.block_size)
-        f.close()
-
-        try:
-            print "Creating cipher"
-            # Setup our AES cipher
-            cipher = AES.new(key,AES.MODE_CFB,iv)        
-            print "Cipher created using iv %s" % binascii.hexlify(iv)
-        except:
-            raise
-
-        # Open encrypted file in staging area, decrypt it and save it to disk with
-        # different filename
-        decrfilename = "%s_clear" % infile
-        epath = os.path.join(app.config['UPLOAD_FOLDER'],decrfilename)
-        print "File ready: %s" % epath
-        f = open(epath,"wb")
-        for chunk in chunkfile(path,ivsize=AES.block_size,blocksize=4194304,skipiv=1):
-            f.write(cipher.decrypt(chunk))
-        
-        f.flush()
-        f.close()
-
-        return render_template("showfile.html",filename=decrfilename)
-        #return "File %s in folder %s" % (decrfilename,app.config['UPLOAD_FOLDER'])
-
-
-@app.route('/download',methods=['POST'])
-def uploaded_file():
-    if request.method == 'POST':
-        filename = request.form.get('filename')
-        return send_from_directory(app.config['UPLOAD_FOLDER'],
-                               filename)
+        iv = fd.read(AES.block_size)
          
-def chunkfd(fd,ivsize=16,blocksize=16,skipiv=0):
+        print "Creating cipher"
+        # Setup our AES cipher
+        cipher = AES.new(key,AES.MODE_CFB,iv)        
+        print "Cipher created using iv %s" % binascii.hexlify(iv)
+        if (fd.closed):
+            print "Handle closed"
+        else:
+            print "Handle open"
+        for chunk in chunkfd(fd,ivsize=AES.block_size):
+            outbuf.write(cipher.decrypt(chunk))
+
+        outbuf.flush()
+
+        return outbuf            
+
+
+         
+def chunkfd(inbuf,ivsize=16,blocksize=16,skipiv=0):
     if(skipiv):
-        fd.seek(ivsize)
+        inbuf.seek(ivsize)
     while True:
-        chunk = fd.read(blocksize)
+        chunk = inbuf.read(blocksize)
         if chunk:
           yield chunk
         else:
@@ -282,50 +289,20 @@ def chunkfile(filename,ivsize=16,blocksize=16,skipiv=0):
 
 @app.route('/viewfiles',methods=['POST'])
 def showFiles():
-    print request.method
     if request.method == 'POST':
-        
-        infile = request.files['infile']
-        fd = infile.stream
-        #with fd:
-        #    print fd.read()
         try:
-            fd.seek(0,os.SEEK_END)
-            fdsize = fd.tell()
-            print "file size is %d" % fdsize
-            fd.seek(0)
             # get a chunked DropBox uploader
             # Get the Dropbox client we stored earlier
             access_token = config.get('Credentials','access_token')
             dclient = DropboxClient(access_token)
-            uploader = dclient.get_chunked_uploader(fd,fdsize)
-            print "Saving file %s to dropbox" % infile.filename
-            while uploader.offset < fdsize:
-                try:
-                    upload = uploader.upload_chunked()
-                except Exception as e:
-                    print e
-            dboxname = uploader.finish(secure_filename("/%s" % infile.filename))['path']
-            fd.seek(0)
+            contents = dclient.metadata("/")['contents']
+            flist = []
+            for i in contents:
+                flist.append(i['path'])
+            return render_template('viewfiles.html',filelist=flist)
         except Exception as e:
             print e
-        fname = secure_filename(infile.filename)
-        path = os.path.join(app.config['UPLOAD_FOLDER'],fname)
-        infile.save(path)
-        firmid = request.form.get('firmid')
-        clientid = request.form.get('clientid')
-        print "Got firm %s and client %s" % (firmid,clientid)
-        bfirmid = base64.b64encode(firmid)
-        bclientid = base64.b64encode(clientid)
-        print "Got bfirm %s and bclient %s" % (bfirmid,bclientid)
-        return render_template('saveresult.html',filename=fname,dboxname=dboxname,bfirmid=bfirmid, \
-            bclientid=bclientid)
 
-def dropboxDL():
-    return 1
-
-def dropboxUL():
-    return 1
 
 if __name__ == '__main__':
     app.run(host="localhost",port=8008)

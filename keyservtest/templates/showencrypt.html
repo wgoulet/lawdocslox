@@ -9,9 +9,9 @@
 <br>
 <b>File Name {{ filename }} was encrypted using key {{ key }} <b>
 <br>
-<form name="input" action="/decrypt" method="post" enctype=multipart/form-data>
+<form name="input" action="/viewfiles" method="post" enctype=multipart/form-data>
 <br>
-Download decrypted file? <input type="submit" value="OK">
+View encrypted files? <input type="submit" value="OK">
 <input type="hidden" name="bfirmid" value="{{ bfirmid }}">
 <input type="hidden" name="filename" value="{{ filename }}">
 <input type="hidden" name="bclientid" value="{{ bclientid }}">
