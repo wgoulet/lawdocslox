@@ -88,7 +88,6 @@ def dropboxAuthStart():
 def getAuthFlow():
     print "starting auth flow"
     redirect_uri = app.config['REDIRECT_URI']
-    #redirect_uri = 'https://webservice.jdt.org/dropbox-auth-finish'#url_for('dropbox_auth_finish',_external=True)
     print redirect_uri
     try:
         flow = DropboxOAuth2Flow(app.config['APP_KEY'],app.config['APP_SECRET'],
