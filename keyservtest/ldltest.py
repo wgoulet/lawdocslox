@@ -19,11 +19,13 @@ from werkzeug import secure_filename
 
 app = Flask(__name__)
 config = ConfigParser.ConfigParser()
-config.read('./ldl.cfg')
-app.config['CFG_FILE'] = './ldl.cfg'
+config.read('/home/jdtadmin/keyservtest/ldl.cfg')
+app.config['CFG_FILE'] = '/home/jdtadmin/keyservtest/ldl.cfg'
 app.config['UPLOAD_FOLDER'] = config.get('Environment','upload_folder')
 app.config['APP_KEY'] = config.get('Credentials','dropbox_app_key')
 app.config['APP_SECRET'] = config.get('Credentials','dropbox_app_secret')
+app.config['REDIRECT_URI'] = config.get('Environment','redirect_uri')
+app.config['KEYSERVER_URI'] = config.get('Environment','keyserver_uri')
 app.config['SECRET_KEY'] ='testing'
 
 
@@ -85,7 +87,7 @@ def dropboxAuthStart():
 
 def getAuthFlow():
     print "starting auth flow"
-    redirect_uri = 'http://localhost:8008/dropbox-auth-finish'#url_for('dropbox_auth_finish',_external=True)
+    redirect_uri = app.config['REDIRECT_URI']
     print redirect_uri
     try:
         flow = DropboxOAuth2Flow(app.config['APP_KEY'],app.config['APP_SECRET'],
@@ -139,8 +141,8 @@ def savefile(fd,fname,bfirmid,bclientid):
     # Encrypt each chunk from fd as it is read into a 
     # tmpfile which will be uploaded to Dropbox using
     # the given filename. 
-    r = requests.get("http://ubuntu:8084/keyserv/key/%s/%s" % (bfirmid,bclientid))
-    print "http://ubuntu:8084/keyserv/key/%s/%s" % (bfirmid,bclientid)
+    r = requests.get("%s/keyserv/key/%s/%s" % (app.config['KEYSERVER_URI'],bfirmid,bclientid)) 
+    print "%s/keyserv/key/%s/%s" % (app.config['KEYSERVER_URI'],bfirmid,bclientid) 
     keyobj = r.json()
     encrkey = keyobj['key']
     print "Got key %s" % encrkey
@@ -232,8 +234,8 @@ def getfile(fd,bfirmid,bclientid):
     if request.method == 'POST':
         outstream = io.BytesIO()
         outbuf = io.BufferedRandom(outstream) 
-        r = requests.get("http://ubuntu:8084/keyserv/key/%s/%s" % (bfirmid,bclientid))
-        print "http://ubuntu:8084/keyserv/key/%s/%s" % (bfirmid,bclientid)
+        r = requests.get("%s/keyserv/key/%s/%s" % (app.config['KEYSERVER_URI'],bfirmid,bclientid)) 
+        print "%s/keyserv/key/%s/%s" % (app.config['KEYSERVER_URI'],bfirmid,bclientid)
         keyobj = r.json()
         encrkey = keyobj['key']
         print "Got key %s" % encrkey
@@ -305,4 +307,4 @@ def showFiles():
 
 
 if __name__ == '__main__':
-    app.run(host="localhost",port=8008)
+    app.run(host="0.0.0.0",port=8080)
