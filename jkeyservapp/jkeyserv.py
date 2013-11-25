@@ -29,12 +29,15 @@ d.update(bclientid,0,len(bclientid))
 # output from the SHA256Digest object
 dval = zeros(d.getDigestSize(),'b')
 d.doFinal(dval,0)
-print dval
-print binascii.hexlify(dval.tostring())
+print base64.b64encode(dval.tostring())
+#print binascii.hexlify(dval.tostring())
+print  base64.b64encode(iv)
+print  base64.b64encode(secret)
 
 kg = KDF2BytesGenerator(d)
 kp = KDFParameters(iv,secret)
 kg.init(kp)
 kval = zeros(keysize,'b')
 kg.generateBytes(kval,0,len(kval))
+#print binascii.hexlify(kval.tostring())
 print  base64.b64encode(kval.tostring())
