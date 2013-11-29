@@ -9,6 +9,7 @@ import requests
 import subprocess
 import collections
 import json
+import Pyro4
 from Crypto.Cipher import AES
 from Crypto import Random
 
@@ -27,16 +28,25 @@ def chunkfile(filename,blocksize=16,skipchunk=0):
 infile = sys.argv[1]
 outfile = sys.argv[2]
 finalfile = sys.argv[3]
-bfirmid = base64.b64encode("i love jenbaby")
-bclientid = base64.b64encode("12345")
+iface = sys.argv[4]
+bfirmid = base64.b64encode("jen loves")
+bclientid = base64.b64encode("walter")
 
-r = requests.get("http://ubuntu:8084/keyserv/key/%s/%s" % (bfirmid,bclientid))
-keyobj = r.json()
-encrkey = keyobj['key']
-print "Got key %s" % encrkey
-# Carve out a 32byte/256 bit key from the keyserver
-# but convert base64 back to binary first
-bkey = binascii.a2b_base64(encrkey)
+if iface=='pyro':
+    kfact = Pyro4.Proxy("PYRONAME:keyobjfactory")
+    encrkey = kfact.getkey(bfirmid,bclientid)
+    # Jython key generator returns raw bytes so
+    # no need to decode it from base64
+    bkey = encrkey.encode('raw_unicode_escape')
+    print "Got key %s" % base64.b64encode(bkey)
+else:
+    r = requests.get("http://localhost:8080/keyserv/key/%s/%s" % (bfirmid,bclientid))
+    keyobj = r.json()
+    encrkey = keyobj['key']
+    #print "Got key %s" % encrkey
+    bkey = binascii.a2b_base64(encrkey)
+    print "Got key %s" % base64.b64encode(bkey)
+
 key = bkey[0:32]
 #key = b'Sixteen byte key'
 try:

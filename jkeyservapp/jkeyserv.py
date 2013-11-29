@@ -14,13 +14,11 @@ import Pyro4
 
 class KeyObjFactory(object):
     def __init__(self):
-        self.iv = "test"
-        self.secret = "1234"
+        self.iv = "461/tOh/0Gw9PKtGSBER0ekashdzDtzNlMpxdNHUip44aNYfL8EdpjMEj/VZAgp+ss0l/vrh8FNyjR50J53UeamPJTYl7jqH1Ydr7w70vpuuwBMEHNQAthEvzWx1gtjASPnkZalWEgp3QC0MeuCMqqL67bAMHbNWBhq1r8DE9yvvUM013UoRSjR1sEaZu7HDN1VcdnFDiUIvbNY4R70lFvv/btg8VLUsus665dcq2bkC7VHFWPICpAs4y0CLpgZtwN6LdZcJNgY="
+        self.secret = "i love jen!!"
         self.keysize = 32
 
     def getkey(self,bid,cid):
-        bfirmid = base64.b64encode(bid)
-        bclientid = base64.b64encode(cid)
         iv = "test"
         secret = "1234"
         keysize = 32
@@ -28,14 +26,9 @@ class KeyObjFactory(object):
 
 
         d = SHA256Digest()
-        d.update(bfirmid,0,len(bfirmid))
-        d.update(bclientid,0,len(bclientid))
-
-        # Since BouncyCastle expects to dump output to a writeable
-        # byte array, we have to create a PyArray object to store
-        # output from the SHA256Digest object
-        dval = zeros(d.getDigestSize(),'b')
-        d.doFinal(dval,0)
+        d.update(bid,0,len(bid))
+        d.update(cid,0,len(cid))
+        d.finish()
         #print binascii.hexlify(dval.tostring())
 
         kg = KDF2BytesGenerator(d)
@@ -51,16 +44,16 @@ class KeyObjFactory(object):
 
 def main():
     k = KeyObjFactory()
-    kval = k.getkey("walter","jen")
+    #kval = k.getkey(base64.b64encode("walter"),base64.b64encode("jen"))
     #print  base64.b64encode(bytearray(kval))
-    print type(kval)
-    print  base64.b64encode(kval)
+    #print type(kval)
+    #print  base64.b64encode(kval)
     Pyro4.config.LOGWIRE = True
     Pyro4.Daemon.serveSimple(
         {
             k: "keyobjfactory"
         },
-        ns = False)
+        ns = True)
 
 if __name__=="__main__":
     main()
