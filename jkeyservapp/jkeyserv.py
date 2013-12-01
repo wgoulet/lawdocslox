@@ -29,7 +29,6 @@ class KeyObjFactory(object):
         d.update(bid,0,len(bid))
         d.update(cid,0,len(cid))
         d.finish()
-        #print binascii.hexlify(dval.tostring())
 
         kg = KDF2BytesGenerator(d)
         kp = KDFParameters(iv,secret)
