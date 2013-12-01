@@ -43,7 +43,6 @@ else:
     r = requests.get("http://localhost:8080/keyserv/key/%s/%s" % (bfirmid,bclientid))
     keyobj = r.json()
     encrkey = keyobj['key']
-    #print "Got key %s" % encrkey
     bkey = binascii.a2b_base64(encrkey)
     print "Got key %s" % base64.b64encode(bkey)
 
