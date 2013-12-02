@@ -12,6 +12,7 @@ class KeyObjFactory {
     private static byte[] secret;
     private static byte[] iv;
     private static byte[] seed;
+    private static int keysize;
     public static void setSecret(byte[] in) 
     {
 	    secret = new byte[in.length];
@@ -63,6 +64,10 @@ class KeyObjFactory {
 	System.arraycopy(in,0 , iv, 0, in.length);
 
     }
+    public static void setKeySize(int size)
+    {
+	    keysize = size;
+    }
     public static void setRandomSeed(byte[] in)
     {
 	    seed = new byte[in.length];
@@ -76,7 +81,7 @@ class KeyObjFactory {
 	KDF2BytesGenerator kg = new KDF2BytesGenerator(d);
 	KDFParameters kp = new KDFParameters(iv,secret);
 	kg.init(kp);
-	byte[] keyval = new byte[200];
+	byte[] keyval = new byte[keysize];
 	kg.generateBytes(keyval, 0, keyval.length);
         return new KeyObj(keyval,10);
     }

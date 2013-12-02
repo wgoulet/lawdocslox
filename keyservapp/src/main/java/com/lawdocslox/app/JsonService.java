@@ -58,6 +58,7 @@ public class JsonService {
   private String seed;
   private String secret;
   private String iv;
+  private String keysize;
 
   @PostConstruct
   public void init()
@@ -67,6 +68,7 @@ public class JsonService {
 	// properties file
 	Properties props = new Properties();
 	File keys = new File(keyfile);
+	log.info(keys.getName());
 	if(!keys.exists())
 	{
 		try
@@ -74,6 +76,7 @@ public class JsonService {
 			keys.createNewFile();
 		}catch(Exception e)
 		{
+			
 			e.printStackTrace();
 			System.exit(1);
 		}
@@ -84,12 +87,15 @@ public class JsonService {
 		
 		props.load(fstream);
 		if((props.containsKey("secret") 
-		&&(props.containsKey("iv"))))
+		&&(props.containsKey("iv"))
+                &&(props.containsKey("keysize"))))
 		{
 			secret = props.getProperty("secret");
 			iv = props.getProperty("iv");
+			keysize = props.getProperty("keysize");
 			KeyObjFactory.setSecret(Base64.decodeBase64(secret));
 			KeyObjFactory.setIV(Base64.decodeBase64(iv));
+			KeyObjFactory.setKeySize(Integer.decode(keysize).intValue());
 		}
 		else
 		{
@@ -98,6 +104,8 @@ public class JsonService {
 			seedbytes = KeyObjFactory.genRandVal(seedsize);
 			props.setProperty("secret", initsecret);
 			secret = props.getProperty("secret");
+			props.setProperty("keysize","32");
+			KeyObjFactory.setKeySize(32);
 			KeyObjFactory.setRandomSeed(seedbytes);
 			KeyObjFactory.setSecret(Base64.decodeBase64(secret));
 			KeyObjFactory.genIV();

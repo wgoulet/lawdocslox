@@ -86,6 +86,7 @@ public class AppTest
         KeyObj key,key2;
 	KeyObjFactory.setSecret(secret);
 	KeyObjFactory.setRandomSeed(seed);
+	KeyObjFactory.setKeySize(32);
 	KeyObjFactory.genIV();
 	key = KeyObjFactory.getKeyObj(clientid,firmid);
 	seed = gen.generateSeed(200,false);
@@ -117,6 +118,7 @@ public class AppTest
 	KeyObjFactory.setSecret(secret);
 	KeyObjFactory.setRandomSeed(seed);
 	KeyObjFactory.genIV();
+	KeyObjFactory.setKeySize(32);
 	key = KeyObjFactory.getKeyObj(clientid,firmid);
 	KeyObjFactory.setSecret(secret2);
 	key2 = KeyObjFactory.getKeyObj(clientid,firmid);
